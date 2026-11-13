@@ -1,21 +1,62 @@
 // use prisma-8
 
+enum BookingStatus {
+  @@type("pg/text@1")
+  PENDING   = "PENDING"
+  CONFIRMED = "CONFIRMED"
+  CANCELLED = "CANCELLED"
+}
+
 model User {
-  id        Int                @id @default(autoincrement())
-  email     String             @unique
-  username  String?
-  name      String?
-  posts     Post[]
-  createdAt DateTime           @default(now()) @onCreate(now())
+  id            String    @id
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String
+  bookings      Booking[]
+  createdAt     DateTime  @default(now()) @onCreate(now())
+  updatedAt     temporal.UpdatedAt
+}
+
+model Route {
+  id          String   @id @onCreate(uuid())
+  origin      String
+  destination String
+  buses       Bus[]
+  createdAt   DateTime @default(now()) @onCreate(now())
+  updatedAt   temporal.UpdatedAt
+}
+
+model Bus {
+  id        String   @id @onCreate(uuid())
+  name      String
+  route     Route    @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  routeId   String
+  seats     Seat[]
+  createdAt DateTime @default(now()) @onCreate(now())
   updatedAt temporal.UpdatedAt
 }
 
-model Post {
-  id        Int                @id @default(autoincrement())
-  title     String
-  content   String?
-  author    User               @relation(fields: [authorId], references: [id])
-  authorId  Int
-  createdAt DateTime           @default(now()) @onCreate(now())
+model Seat {
+  id        String    @id @onCreate(uuid())
+  number    String
+  isBooked  Boolean   @default(false)
+  bus       Bus       @relation(fields: [busId], references: [id], onDelete: Cascade)
+  busId     String
+  bookings  Booking[]
+  createdAt DateTime  @default(now()) @onCreate(now())
   updatedAt temporal.UpdatedAt
+
+  @@unique([busId, number])
+}
+
+model Booking {
+  id          String        @id @onCreate(uuid())
+  bookingDate DateTime
+  status      BookingStatus @default(PENDING)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  seat        Seat          @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  seatId      String
+  createdAt   DateTime      @default(now()) @onCreate(now())
+  updatedAt   temporal.UpdatedAt
 }

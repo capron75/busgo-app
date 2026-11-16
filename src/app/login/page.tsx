@@ -21,20 +21,16 @@ export default function LoginPage() {
       setError(result.error.message ?? "Sign in failed.");
       return;
     }
-    window.location.assign("/");
+    const next = new URLSearchParams(window.location.search).get("next");
+    window.location.assign(next?.startsWith("/") ? next : "/");
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-black">
-      <form
-        onSubmit={onSubmit}
-        className="flex w-full max-w-sm flex-col gap-4 rounded-2xl bg-white p-8 shadow-sm dark:bg-zinc-950"
-      >
-        <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">Log in</h1>
-        <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-          Demo account: demo@busgo.local / Busgo-demo-1
-        </p>
-        <label className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
+    <main className="flex flex-1 items-center justify-center px-4 py-16">
+      <form onSubmit={onSubmit} className="animate-rise flex w-full max-w-sm flex-col gap-4 rounded-2xl bg-white p-8 shadow-lg">
+        <h1 className="text-2xl font-extrabold text-brand">Login</h1>
+        <p className="text-sm leading-6 text-zinc-500">Demo account: demo@busgo.local / Busgo-demo-1</p>
+        <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
           Email
           <input
             name="email"
@@ -42,10 +38,10 @@ export default function LoginPage() {
             autoComplete="email"
             required
             defaultValue="demo@busgo.local"
-            className="h-11 rounded-lg border border-zinc-200 px-3 text-black dark:border-zinc-800 dark:bg-black dark:text-zinc-50"
+            className="h-12 rounded-lg border border-zinc-200 px-3 text-base font-semibold normal-case text-zinc-900 outline-none focus:border-brand"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
+        <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
           Password
           <input
             name="password"
@@ -53,16 +49,16 @@ export default function LoginPage() {
             autoComplete="current-password"
             required
             defaultValue="Busgo-demo-1"
-            className="h-11 rounded-lg border border-zinc-200 px-3 text-black dark:border-zinc-800 dark:bg-black dark:text-zinc-50"
+            className="h-12 rounded-lg border border-zinc-200 px-3 text-base font-semibold text-zinc-900 outline-none focus:border-brand"
           />
         </label>
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="text-sm text-brand-dark">{error}</p> : null}
         <button
           type="submit"
           disabled={pending}
-          className="h-11 rounded-full bg-black text-white disabled:opacity-60 dark:bg-zinc-50 dark:text-black"
+          className="h-12 rounded-lg bg-brand font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
         >
-          {pending ? "Signing in..." : "Sign in"}
+          {pending ? "Signing in..." : "Login"}
         </button>
       </form>
     </main>

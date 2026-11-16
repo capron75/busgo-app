@@ -32,7 +32,7 @@ export default function SearchPage() {
   const [activeBus, setActiveBus] = useState<BusResult | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [chosenIds, setChosenIds] = useState<string[]>([]);
-  const [booking, setBooking] = useState<"idle" | "saving" | "done">("idle");
+  const [booking, setBooking] = useState<"idle" | "saving">("idle");
 
   async function search(fromCity: string, toCity: string, date: string) {
     setPending(true);
@@ -109,7 +109,15 @@ export default function SearchPage() {
       setError(body.error ?? "Booking failed.");
       return;
     }
-    setBooking("done");
+    const booked = seats.filter((seat) => seatIds.includes(seat.id));
+    const params = new URLSearchParams({
+      seats: booked.map((seat) => seat.number).join(","),
+      total: String(booked.length * activeBus.pricePerSeat),
+      bus: activeBus.name,
+      from: activeBus.origin,
+      to: activeBus.destination,
+    });
+    window.location.assign(`/bookings/confirm?${params.toString()}`);
   }
 
   const chosenSeats = seats.filter((seat) => chosenIds.includes(seat.id));
@@ -194,20 +202,14 @@ export default function SearchPage() {
               {chosenSeats.length > 0 ? chosenSeats.map((seat) => seat.number).join(", ") : "No seats yet"}
             </p>
             <p className="mt-3 text-3xl font-extrabold text-brand">{total} NOK</p>
-            {booking === "done" ? (
-              <p className="mt-4 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-emerald-700">
-                Seats held. Show this booking at boarding.
-              </p>
-            ) : (
-              <button
-                type="button"
-                disabled={chosenIds.length === 0 || booking === "saving"}
-                onClick={() => void confirmBooking()}
-                className="mt-4 h-12 w-full rounded-lg bg-brand font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:bg-zinc-300"
-              >
-                {booking === "saving" ? "Booking..." : session?.user ? "Proceed to book" : "Login to proceed"}
-              </button>
-            )}
+            <button
+              type="button"
+              disabled={chosenIds.length === 0 || booking === "saving"}
+              onClick={() => void confirmBooking()}
+              className="mt-4 h-12 w-full rounded-lg bg-brand font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:bg-zinc-300"
+            >
+              {booking === "saving" ? "Booking..." : session?.user ? "Proceed to book" : "Login to proceed"}
+            </button>
           </aside>
         </section>
       ) : null}

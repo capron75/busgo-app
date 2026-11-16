@@ -22,26 +22,41 @@ export async function POST(request: Request) {
   }
 
   const seats = await db.orm.public.Seat.where((seat) => seat.id.in(seatIds)).all();
-  const unavailable = seatIds.filter((id) => {
-    const seat = seats.find((item) => item.id === id);
+  const seatsById = new Map(seats.map((seat) => [seat.id, seat]));
+  const seen = new Set<string>();
+  const unavailable = seatIds.some((id) => {
+    if (seen.has(id)) return true;
+    seen.add(id);
+    const seat = seatsById.get(id);
     return !seat || seat.busId !== busId || seat.isBooked;
   });
-  if (unavailable.length > 0) {
+  if (unavailable) {
     return Response.json({ error: "One of those seats is no longer free." }, { status: 409 });
   }
 
-  const bookings = [];
-  for (const seatId of seatIds) {
-    await db.orm.public.Seat.where((seat) => seat.id.eq(seatId)).update({ isBooked: true });
-    const booking = await db.orm.public.Booking.create({
-      id: randomUUID(),
-      bookingDate: bus.departureAt,
-      status: "PENDING",
-      userId: session.user.id,
-      seatId,
-    });
-    bookings.push({ id: booking.id, seatId });
-  }
+  const userId = session.user.id;
+  const bookings = await db.transaction(async (tx) => {
+    const created: { id: string; seatId: string; seatNumber: string }[] = [];
+    for (const seatId of seatIds) {
+      const seat = seatsById.get(seatId);
+      if (!seat) {
+        throw new Error("Seat is no longer free.");
+      }
+      await tx.orm.public.Seat.where((row) => row.id.eq(seatId)).update({ isBooked: true });
+      const booking = await tx.orm.public.Booking.create({
+        id: randomUUID(),
+        bookingDate: bus.departureAt,
+        status: "PENDING",
+        userId,
+        seatId,
+      });
+      created.push({ id: booking.id, seatId, seatNumber: seat.number });
+    }
+    return created;
+  });
 
-  return Response.json({ bookings });
+  return Response.json({
+    bookings,
+    total: seatIds.length * bus.pricePerSeat,
+  });
 }

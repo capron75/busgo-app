@@ -1,0 +1,53 @@
+---
+description: BusGo coding conventions for TypeScript, React, Tailwind, API routes, Zod, and Prisma
+alwaysApply: true
+---
+
+# BusGo conventions
+
+`tsconfig.json` has `strict: true`. Keep it on. Do not use `any`, non-null assertions, or unchecked casts to silence the compiler.
+
+## React
+
+Use function components. Style only with Tailwind `className`. Do not add CSS modules, styled-components, or inline `style` objects.
+
+```tsx
+export function SeatButton({ label }: { label: string }) {
+  return (
+    <button type="button" className="rounded-lg bg-brand px-4 py-2 font-bold text-white">
+      {label}
+    </button>
+  );
+}
+```
+
+## API routes
+
+Put route handlers under `src/app/api/`. Validate JSON bodies with Zod before using them. Return `Response.json` with an explicit status.
+
+```ts
+import { z } from "zod";
+
+const bodySchema = z.object({
+  busId: z.string().min(1),
+  seatIds: z.array(z.string().min(1)).min(1),
+});
+
+export async function POST(request: Request) {
+  const parsed = bodySchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return Response.json({ error: "Invalid booking." }, { status: 400 });
+  }
+  return Response.json({ busId: parsed.data.busId });
+}
+```
+
+## Database
+
+Import the shared client from `@/prisma/db` (`src/prisma/db.ts`). Do not construct a new Prisma client in routes, pages, or scripts.
+
+```ts
+import { db } from "@/prisma/db";
+
+const bus = await db.orm.public.Bus.first({ id });
+```

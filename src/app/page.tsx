@@ -1,6 +1,22 @@
 // https://www.youtube.com/watch?v=k5x3pasUJPs
 
 import Image from "next/image";
+import { Suspense } from "react";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+
+async function SessionLine() {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  return (
+    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      {session?.user ? `Signed in as ${session.user.email}` : "Not signed in."}{" "}
+      <a className="font-medium text-zinc-950 underline dark:text-zinc-50" href="/login">
+        {session?.user ? "Log in as someone else" : "Log in"}
+      </a>
+    </p>
+  );
+}
 
 export default function Home() {
   return (
@@ -15,6 +31,9 @@ export default function Home() {
           priority
         />
         <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+          <Suspense fallback={<p className="text-sm text-zinc-600 dark:text-zinc-400">Checking session...</p>}>
+            <SessionLine />
+          </Suspense>
           <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
             To get started, edit the{" "}
             <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">

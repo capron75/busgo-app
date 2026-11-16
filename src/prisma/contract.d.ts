@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'b437853de5970be93b9dea7f400eee046f0d1f77aa71cc81c60b8f242d4b2020'>;
+  StorageHashBase<'3de0dccbbdbcb7113179798233217c37156225a0c311a80348e776b67a7babea'>;
 export type ExecutionHash =
   ExecutionHashBase<'7f35fdfbb5072dbfb5c0c0806a8c18afae956b8ccae570293bd6b9548f053ee3'>;
 export type ProfileHash =
@@ -360,8 +360,10 @@ export namespace Models {
   };
   export type public_Bus = {
     createdAt: FieldOutputTypes['public']['Bus']['createdAt'];
+    departureAt: FieldOutputTypes['public']['Bus']['departureAt'];
     id: FieldOutputTypes['public']['Bus']['id'];
     name: FieldOutputTypes['public']['Bus']['name'];
+    pricePerSeat: FieldOutputTypes['public']['Bus']['pricePerSeat'];
     routeId: FieldOutputTypes['public']['Bus']['routeId'];
     updatedAt: FieldOutputTypes['public']['Bus']['updatedAt'];
     route: public_Route;
@@ -672,6 +674,13 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly departureAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -681,6 +690,12 @@ type ContractBase = Omit<
                 readonly name: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly pricePerSeat: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
                   readonly nullable: false;
                   readonly many: false;
                 };
@@ -1241,6 +1256,14 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly departureAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -1248,6 +1271,10 @@ type ContractBase = Omit<
               readonly name: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly pricePerSeat: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly routeId: {
                 readonly nullable: false;
@@ -1289,8 +1316,10 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly departureAt: { readonly column: 'departureAt' };
                 readonly id: { readonly column: 'id' };
                 readonly name: { readonly column: 'name' };
+                readonly pricePerSeat: { readonly column: 'pricePerSeat' };
                 readonly routeId: { readonly column: 'routeId' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
               };

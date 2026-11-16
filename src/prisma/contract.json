@@ -371,6 +371,16 @@
                   }
                 }
               },
+              "departureAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -382,6 +392,13 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "pricePerSeat": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
@@ -441,11 +458,17 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "departureAt": {
+                  "column": "departureAt"
+                },
                 "id": {
                   "column": "id"
                 },
                 "name": {
                   "column": "name"
+                },
+                "pricePerSeat": {
+                  "column": "pricePerSeat"
                 },
                 "routeId": {
                   "column": "routeId"
@@ -1268,6 +1291,14 @@
                     "precision": 3
                   }
                 },
+                "departureAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -1276,6 +1307,11 @@
                 "name": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "nullable": false
+                },
+                "pricePerSeat": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "nullable": false
                 },
                 "routeId": {
@@ -1706,7 +1742,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b437853de5970be93b9dea7f400eee046f0d1f77aa71cc81c60b8f242d4b2020"
+    "storageHash": "3de0dccbbdbcb7113179798233217c37156225a0c311a80348e776b67a7babea"
   },
   "execution": {
     "executionHash": "7f35fdfbb5072dbfb5c0c0806a8c18afae956b8ccae570293bd6b9548f053ee3",

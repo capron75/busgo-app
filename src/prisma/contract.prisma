@@ -30,11 +30,13 @@ model Route {
 }
 
 model Bus {
-  id        String   @id @onCreate(uuid())
-  name      String
-  route     Route    @relation(fields: [routeId], references: [id], onDelete: Restrict)
-  routeId   String
-  seats     Seat[]
+  id            String   @id @onCreate(uuid())
+  name          String
+  departureAt   DateTime
+  pricePerSeat  Int
+  route         Route    @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  routeId       String
+  seats         Seat[]
   createdAt DateTime @default(now()) @onCreate(now())
   updatedAt temporal.UpdatedAt
 }

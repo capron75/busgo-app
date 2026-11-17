@@ -142,6 +142,27 @@ test("counts a repeated billable seat once and leaves a cancelled-only seat out 
   assert.equal(trips[0]?.price, 499);
 });
 
+test("a later cancellation is seen first and the pending row keeps the seat billable", () => {
+  const trips = groupTrips([
+    booking({
+      userId: "ada",
+      status: "CANCELLED",
+      createdAt: new Date("2026-11-16T15:05:00.000Z"),
+      seat: seat({ id: "same", number: "12" }),
+    }),
+    booking({
+      userId: "ada",
+      status: "PENDING",
+      createdAt: new Date("2026-11-16T15:04:00.000Z"),
+      seat: seat({ id: "same", number: "12" }),
+    }),
+  ]);
+
+  assert.equal(trips.length, 1);
+  assert.deepEqual(trips[0]?.seats, [{ number: "12", status: "PENDING" }]);
+  assert.equal(trips[0]?.price, 499);
+});
+
 test("hides the fare when every seat is cancelled", () => {
   const trips = groupTrips([
     booking({

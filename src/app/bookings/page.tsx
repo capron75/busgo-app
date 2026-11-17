@@ -1,24 +1,10 @@
+import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
+import { headers } from "next/headers";
 import { connection } from "next/server";
+import { auth } from "@/lib/auth";
 import { db } from "@/prisma/db";
-
-const statuses = ["PENDING", "CONFIRMED", "CANCELLED"] as const;
-
-type BookingStatus = (typeof statuses)[number];
-
-type BookingRow = Awaited<ReturnType<typeof loadBookings>>[number];
-
-type TripCard = {
-  key: string;
-  busName: string;
-  origin: string;
-  destination: string;
-  bookingDate: Date;
-  seatNumbers: string[];
-  statuses: BookingStatus[];
-  price: number;
-  latestCreatedAt: Date;
-};
+import { IncompleteBookingError, groupTrips } from "./group-trips";
 
 const departureFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -29,15 +15,7 @@ const departureFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
-function compareSeatNumbers(left: string, right: string) {
-  return left.localeCompare(right, "en", { numeric: true, sensitivity: "base" });
-}
-
-function isBookingStatus(value: string): value is BookingStatus {
-  return statuses.some((status) => status === value);
-}
-
-function statusLabel(status: BookingStatus) {
+function statusLabel(status: "PENDING" | "CONFIRMED" | "CANCELLED") {
   switch (status) {
     case "PENDING":
       return "Pending";
@@ -48,7 +26,7 @@ function statusLabel(status: BookingStatus) {
   }
 }
 
-function statusBadgeClass(status: BookingStatus) {
+function statusBadgeClass(status: "PENDING" | "CONFIRMED" | "CANCELLED") {
   switch (status) {
     case "PENDING":
       return "bg-zinc-100 text-zinc-700";
@@ -63,83 +41,15 @@ function formatDeparture(value: Date) {
   return departureFormat.format(value);
 }
 
-function groupTrips(bookings: BookingRow[]): TripCard[] {
-  const groups = new Map<
-    string,
-    {
-      key: string;
-      busName: string;
-      origin: string;
-      destination: string;
-      bookingDate: Date;
-      pricePerSeat: number;
-      seatNumbers: string[];
-      statuses: Set<BookingStatus>;
-      latestCreatedAt: Date;
-    }
-  >();
-
-  for (const booking of bookings) {
-    const seat = booking.seat;
-    if (seat === null) continue;
-    const bus = seat.bus;
-    if (bus === null) continue;
-    const route = bus.route;
-    if (route === null) continue;
-    if (!isBookingStatus(booking.status)) continue;
-
-    const key = `${booking.userId}:${bus.id}:${booking.bookingDate.getTime()}`;
-    const existing = groups.get(key);
-    if (existing) {
-      existing.seatNumbers.push(seat.number);
-      existing.statuses.add(booking.status);
-      if (booking.createdAt.getTime() > existing.latestCreatedAt.getTime()) {
-        existing.latestCreatedAt = booking.createdAt;
-      }
-      continue;
-    }
-
-    groups.set(key, {
-      key,
-      busName: bus.name,
-      origin: route.origin,
-      destination: route.destination,
-      bookingDate: booking.bookingDate,
-      pricePerSeat: bus.pricePerSeat,
-      seatNumbers: [seat.number],
-      statuses: new Set([booking.status]),
-      latestCreatedAt: booking.createdAt,
-    });
-  }
-
-  const trips: TripCard[] = [];
-  for (const group of groups.values()) {
-    const seatNumbers = [...group.seatNumbers].sort(compareSeatNumbers);
-    trips.push({
-      key: group.key,
-      busName: group.busName,
-      origin: group.origin,
-      destination: group.destination,
-      bookingDate: group.bookingDate,
-      seatNumbers,
-      statuses: statuses.filter((status) => group.statuses.has(status)),
-      price: group.pricePerSeat * seatNumbers.length,
-      latestCreatedAt: group.latestCreatedAt,
-    });
-  }
-
-  trips.sort((left, right) => right.latestCreatedAt.getTime() - left.latestCreatedAt.getTime());
-  return trips;
-}
-
-async function loadBookings() {
-  return db.orm.public.Booking.orderBy((booking) => booking.createdAt.desc())
+async function loadBookings(userId: string) {
+  return db.orm.public.Booking.where((booking) => booking.userId.eq(userId))
+    .orderBy((booking) => booking.createdAt.desc())
     .include("seat", (seat) => seat.include("bus", (bus) => bus.include("route")))
     .all();
 }
 
 function Notice({ children }: { children: ReactNode }) {
-  return <p className="rounded-2xl bg-white p-6 text-sm text-zinc-600 shadow-sm">{children}</p>;
+  return <div className="rounded-2xl bg-white p-6 text-sm text-zinc-600 shadow-sm">{children}</div>;
 }
 
 export default function BookingsPage() {
@@ -155,8 +65,31 @@ export default function BookingsPage() {
 
 async function BookingList() {
   await connection();
-  const bookings = await loadBookings();
-  const trips = groupTrips(bookings);
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return (
+      <Notice>
+        <p>Log in to see your bookings.</p>
+        <Link
+          href="/login?next=/bookings"
+          className="mt-4 inline-flex h-12 items-center rounded-lg bg-brand px-6 font-bold text-white transition hover:bg-brand-dark"
+        >
+          Login
+        </Link>
+      </Notice>
+    );
+  }
+
+  const bookings = await loadBookings(session.user.id);
+  let trips;
+  try {
+    trips = groupTrips(bookings);
+  } catch (error) {
+    if (error instanceof IncompleteBookingError) {
+      return <Notice>Bookings could not be loaded.</Notice>;
+    }
+    throw error;
+  }
 
   if (trips.length === 0) {
     return <Notice>There are no bookings yet.</Notice>;

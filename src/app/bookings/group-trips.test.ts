@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { IncompleteBookingError, groupTrips, type TripBooking } from "./group-trips";
+import { IncompleteBookingError, UnrecognizedBookingStatusError, groupTrips, type TripBooking } from "./group-trips.ts";
 
 function booking(overrides: Partial<TripBooking> & Pick<TripBooking, "userId" | "status" | "createdAt">): TripBooking {
   return {
@@ -70,7 +70,7 @@ test("groups one purchase and sorts seat numbers naturally", () => {
   assert.equal(trips.length, 1);
   assert.deepEqual(trips[0]?.seatNumbers, ["1B", "2A", "10A"]);
   assert.deepEqual(trips[0]?.statuses, ["PENDING", "CANCELLED"]);
-  assert.equal(trips[0]?.price, 499 * 3);
+  assert.equal(trips[0]?.price, 499 * 2);
   assert.equal(trips[0]?.origin, "Oslo");
   assert.equal(trips[0]?.destination, "Bergen");
 });
@@ -109,7 +109,7 @@ test("keeps separate purchases on different users, buses, or departures", () => 
   );
 });
 
-test("counts a repeated seat once and still includes a cancelled seat in the fare", () => {
+test("counts a repeated billable seat once and leaves a cancelled-only seat out of the fare", () => {
   const trips = groupTrips([
     booking({
       userId: "ada",
@@ -133,7 +133,7 @@ test("counts a repeated seat once and still includes a cancelled seat in the far
 
   assert.equal(trips.length, 1);
   assert.deepEqual(trips[0]?.seatNumbers, ["12", "13"]);
-  assert.equal(trips[0]?.price, 499 * 2);
+  assert.equal(trips[0]?.price, 499);
 });
 
 test("an empty booking list stays empty", () => {
@@ -165,5 +165,12 @@ test("a missing seat, bus, or route is a failed load", () => {
         }),
       ]),
     IncompleteBookingError,
+  );
+});
+
+test("an unrecognized status is a failed load", () => {
+  assert.throws(
+    () => groupTrips([booking({ userId: "ada", status: "HELD", createdAt: new Date() })]),
+    UnrecognizedBookingStatusError,
   );
 });

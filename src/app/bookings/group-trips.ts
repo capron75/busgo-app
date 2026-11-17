@@ -41,6 +41,29 @@ export class IncompleteBookingError extends Error {
   }
 }
 
+export class UnrecognizedBookingStatusError extends Error {
+  constructor() {
+    super("A booking status is not PENDING, CONFIRMED, or CANCELLED.");
+    this.name = "UnrecognizedBookingStatusError";
+  }
+}
+
+type GroupedSeat = {
+  number: string;
+  billable: boolean;
+};
+
+function rememberSeat(seats: Map<string, GroupedSeat>, seat: { id: string; number: string }, status: BookingStatus) {
+  const billable = status === "PENDING" || status === "CONFIRMED";
+  const current = seats.get(seat.id);
+  if (current) {
+    current.number = seat.number;
+    current.billable = current.billable || billable;
+    return;
+  }
+  seats.set(seat.id, { number: seat.number, billable });
+}
+
 function compareSeatNumbers(left: string, right: string) {
   return left.localeCompare(right, "en", { numeric: true, sensitivity: "base" });
 }
@@ -59,7 +82,7 @@ export function groupTrips(bookings: TripBooking[]): TripCard[] {
       destination: string;
       bookingDate: Date;
       pricePerSeat: number;
-      seats: Map<string, string>;
+      seats: Map<string, GroupedSeat>;
       statuses: Set<BookingStatus>;
       latestCreatedAt: Date;
     }
@@ -69,14 +92,17 @@ export function groupTrips(bookings: TripBooking[]): TripCard[] {
     const seat = booking.seat;
     const bus = seat?.bus ?? null;
     const route = bus?.route ?? null;
-    if (seat === null || bus === null || route === null || !isBookingStatus(booking.status)) {
+    if (seat === null || bus === null || route === null) {
       throw new IncompleteBookingError();
+    }
+    if (!isBookingStatus(booking.status)) {
+      throw new UnrecognizedBookingStatusError();
     }
 
     const key = `${booking.userId}:${bus.id}:${booking.bookingDate.getTime()}`;
     const existing = groups.get(key);
     if (existing) {
-      existing.seats.set(seat.id, seat.number);
+      rememberSeat(existing.seats, seat, booking.status);
       existing.statuses.add(booking.status);
       if (booking.createdAt.getTime() > existing.latestCreatedAt.getTime()) {
         existing.latestCreatedAt = booking.createdAt;
@@ -91,7 +117,7 @@ export function groupTrips(bookings: TripBooking[]): TripCard[] {
       destination: route.destination,
       bookingDate: booking.bookingDate,
       pricePerSeat: bus.pricePerSeat,
-      seats: new Map([[seat.id, seat.number]]),
+      seats: new Map([[seat.id, { number: seat.number, billable: booking.status !== "CANCELLED" }]]),
       statuses: new Set([booking.status]),
       latestCreatedAt: booking.createdAt,
     });
@@ -99,7 +125,9 @@ export function groupTrips(bookings: TripBooking[]): TripCard[] {
 
   const trips: TripCard[] = [];
   for (const group of groups.values()) {
-    const seatNumbers = [...group.seats.values()].sort(compareSeatNumbers);
+    const groupedSeats = [...group.seats.values()];
+    const seatNumbers = groupedSeats.map((seat) => seat.number).sort(compareSeatNumbers);
+    const billableSeats = groupedSeats.filter((seat) => seat.billable).length;
     trips.push({
       key: group.key,
       busName: group.busName,
@@ -108,7 +136,7 @@ export function groupTrips(bookings: TripBooking[]): TripCard[] {
       bookingDate: group.bookingDate,
       seatNumbers,
       statuses: statuses.filter((status) => group.statuses.has(status)),
-      price: group.pricePerSeat * seatNumbers.length,
+      price: group.pricePerSeat * billableSeats,
       latestCreatedAt: group.latestCreatedAt,
     });
   }

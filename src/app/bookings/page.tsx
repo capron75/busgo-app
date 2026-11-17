@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { connection } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/prisma/db";
-import { IncompleteBookingError, groupTrips } from "./group-trips";
+import { IncompleteBookingError, UnrecognizedBookingStatusError, groupTrips } from "./group-trips";
 
 const departureFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -85,8 +85,8 @@ async function BookingList() {
   try {
     trips = groupTrips(bookings);
   } catch (error) {
-    if (error instanceof IncompleteBookingError) {
-      return <Notice>Bookings could not be loaded.</Notice>;
+    if (error instanceof IncompleteBookingError || error instanceof UnrecognizedBookingStatusError) {
+      return <Notice>{error.message}</Notice>;
     }
     throw error;
   }

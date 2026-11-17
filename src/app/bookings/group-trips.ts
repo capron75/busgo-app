@@ -22,15 +22,19 @@ export type TripBooking = {
   } | null;
 };
 
+export type TripSeat = {
+  number: string;
+  status: BookingStatus;
+};
+
 export type TripCard = {
   key: string;
   busName: string;
   origin: string;
   destination: string;
   bookingDate: Date;
-  seatNumbers: string[];
-  statuses: BookingStatus[];
-  price: number;
+  seats: TripSeat[];
+  price: number | null;
   latestCreatedAt: Date;
 };
 
@@ -50,18 +54,25 @@ export class UnrecognizedBookingStatusError extends Error {
 
 type GroupedSeat = {
   number: string;
-  billable: boolean;
+  status: BookingStatus;
+};
+
+const statusRank: Record<BookingStatus, number> = {
+  CANCELLED: 0,
+  PENDING: 1,
+  CONFIRMED: 2,
 };
 
 function rememberSeat(seats: Map<string, GroupedSeat>, seat: { id: string; number: string }, status: BookingStatus) {
-  const billable = status === "PENDING" || status === "CONFIRMED";
   const current = seats.get(seat.id);
   if (current) {
     current.number = seat.number;
-    current.billable = current.billable || billable;
+    if (statusRank[status] > statusRank[current.status]) {
+      current.status = status;
+    }
     return;
   }
-  seats.set(seat.id, { number: seat.number, billable });
+  seats.set(seat.id, { number: seat.number, status });
 }
 
 function compareSeatNumbers(left: string, right: string) {
@@ -83,7 +94,6 @@ export function groupTrips(bookings: TripBooking[]): TripCard[] {
       bookingDate: Date;
       pricePerSeat: number;
       seats: Map<string, GroupedSeat>;
-      statuses: Set<BookingStatus>;
       latestCreatedAt: Date;
     }
   >();
@@ -103,7 +113,6 @@ export function groupTrips(bookings: TripBooking[]): TripCard[] {
     const existing = groups.get(key);
     if (existing) {
       rememberSeat(existing.seats, seat, booking.status);
-      existing.statuses.add(booking.status);
       if (booking.createdAt.getTime() > existing.latestCreatedAt.getTime()) {
         existing.latestCreatedAt = booking.createdAt;
       }
@@ -117,26 +126,23 @@ export function groupTrips(bookings: TripBooking[]): TripCard[] {
       destination: route.destination,
       bookingDate: booking.bookingDate,
       pricePerSeat: bus.pricePerSeat,
-      seats: new Map([[seat.id, { number: seat.number, billable: booking.status !== "CANCELLED" }]]),
-      statuses: new Set([booking.status]),
+      seats: new Map([[seat.id, { number: seat.number, status: booking.status }]]),
       latestCreatedAt: booking.createdAt,
     });
   }
 
   const trips: TripCard[] = [];
   for (const group of groups.values()) {
-    const groupedSeats = [...group.seats.values()];
-    const seatNumbers = groupedSeats.map((seat) => seat.number).sort(compareSeatNumbers);
-    const billableSeats = groupedSeats.filter((seat) => seat.billable).length;
+    const groupedSeats = [...group.seats.values()].sort((left, right) => compareSeatNumbers(left.number, right.number));
+    const billableSeats = groupedSeats.filter((seat) => seat.status !== "CANCELLED").length;
     trips.push({
       key: group.key,
       busName: group.busName,
       origin: group.origin,
       destination: group.destination,
       bookingDate: group.bookingDate,
-      seatNumbers,
-      statuses: statuses.filter((status) => group.statuses.has(status)),
-      price: group.pricePerSeat * billableSeats,
+      seats: groupedSeats.map((seat) => ({ number: seat.number, status: seat.status })),
+      price: billableSeats === 0 ? null : group.pricePerSeat * billableSeats,
       latestCreatedAt: group.latestCreatedAt,
     });
   }

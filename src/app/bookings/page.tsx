@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { connection } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/prisma/db";
+import { bookingsForViewer } from "./bookings-access";
 import { IncompleteBookingError, UnrecognizedBookingStatusError, groupTrips } from "./group-trips";
 
 const departureFormat = new Intl.DateTimeFormat("en-GB", {
@@ -52,6 +53,20 @@ function Notice({ children }: { children: ReactNode }) {
   return <div className="rounded-2xl bg-white p-6 text-sm text-zinc-600 shadow-sm">{children}</div>;
 }
 
+function LoginNotice() {
+  return (
+    <Notice>
+      <p>Log in to see your bookings.</p>
+      <Link
+        href="/login?next=/bookings"
+        className="mt-4 inline-flex h-12 items-center rounded-lg bg-brand px-6 font-bold text-white transition hover:bg-brand-dark"
+      >
+        Login
+      </Link>
+    </Notice>
+  );
+}
+
 export default function BookingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8">
@@ -66,21 +81,16 @@ export default function BookingsPage() {
 async function BookingList() {
   await connection();
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
-    return (
-      <Notice>
-        <p>Log in to see your bookings.</p>
-        <Link
-          href="/login?next=/bookings"
-          className="mt-4 inline-flex h-12 items-center rounded-lg bg-brand px-6 font-bold text-white transition hover:bg-brand-dark"
-        >
-          Login
-        </Link>
-      </Notice>
-    );
+  const access = bookingsForViewer(session?.user.id ?? null, []);
+  if (access.kind === "signed-out") {
+    return <LoginNotice />;
   }
 
-  const bookings = await loadBookings(session.user.id);
+  const visible = bookingsForViewer(access.viewerId, await loadBookings(access.viewerId));
+  if (visible.kind === "signed-out") {
+    return <LoginNotice />;
+  }
+  const bookings = visible.bookings;
   let trips;
   try {
     trips = groupTrips(bookings);
@@ -109,19 +119,20 @@ async function BookingList() {
             </p>
             <p className="mt-1 text-sm text-zinc-600">{formatDeparture(trip.bookingDate)}</p>
             <p className="mt-3 text-xs font-bold uppercase tracking-wide text-zinc-500">Seats</p>
-            <p className="mt-1 text-sm font-semibold text-zinc-800">{trip.seatNumbers.join(", ")}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {trip.statuses.map((status) => (
-                <span
-                  key={status}
-                  className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${statusBadgeClass(status)}`}
-                >
-                  {statusLabel(status)}
-                </span>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {trip.seats.map((seat) => (
+                <li key={seat.number} className="flex items-center gap-2 rounded-full bg-zinc-50 py-1 pl-3 pr-1">
+                  <span className="text-sm font-semibold text-zinc-800">{seat.number}</span>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${statusBadgeClass(seat.status)}`}
+                  >
+                    {statusLabel(seat.status)}
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
-          <p className="text-2xl font-extrabold text-brand">{trip.price} NOK</p>
+          {trip.price !== null ? <p className="text-2xl font-extrabold text-brand">{trip.price} NOK</p> : null}
         </li>
       ))}
     </ul>

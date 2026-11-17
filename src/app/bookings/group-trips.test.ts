@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { IncompleteBookingError, UnrecognizedBookingStatusError, groupTrips, type TripBooking } from "./group-trips.ts";
+import { IncompleteBookingError, UnrecognizedBookingStatusError, groupTrips, type TripBooking } from "./group-trips";
 
 function booking(overrides: Partial<TripBooking> & Pick<TripBooking, "userId" | "status" | "createdAt">): TripBooking {
   return {
@@ -68,8 +68,11 @@ test("groups one purchase and sorts seat numbers naturally", () => {
   ]);
 
   assert.equal(trips.length, 1);
-  assert.deepEqual(trips[0]?.seatNumbers, ["1B", "2A", "10A"]);
-  assert.deepEqual(trips[0]?.statuses, ["PENDING", "CANCELLED"]);
+  assert.deepEqual(trips[0]?.seats, [
+    { number: "1B", status: "CANCELLED" },
+    { number: "2A", status: "PENDING" },
+    { number: "10A", status: "PENDING" },
+  ]);
   assert.equal(trips[0]?.price, 499 * 2);
   assert.equal(trips[0]?.origin, "Oslo");
   assert.equal(trips[0]?.destination, "Bergen");
@@ -132,8 +135,26 @@ test("counts a repeated billable seat once and leaves a cancelled-only seat out 
   ]);
 
   assert.equal(trips.length, 1);
-  assert.deepEqual(trips[0]?.seatNumbers, ["12", "13"]);
+  assert.deepEqual(trips[0]?.seats, [
+    { number: "12", status: "PENDING" },
+    { number: "13", status: "CANCELLED" },
+  ]);
   assert.equal(trips[0]?.price, 499);
+});
+
+test("hides the fare when every seat is cancelled", () => {
+  const trips = groupTrips([
+    booking({
+      userId: "ada",
+      status: "CANCELLED",
+      createdAt: new Date("2026-11-16T15:04:00.000Z"),
+      seat: seat({ id: "only", number: "7A" }),
+    }),
+  ]);
+
+  assert.equal(trips.length, 1);
+  assert.deepEqual(trips[0]?.seats, [{ number: "7A", status: "CANCELLED" }]);
+  assert.equal(trips[0]?.price, null);
 });
 
 test("an empty booking list stays empty", () => {

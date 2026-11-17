@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/app/bookings/group-trips.test.ts",
+    "test": "node --experimental-strip-types --import ./scripts/register-test-imports.mjs --test src/app/bookings/group-trips.test.ts src/app/bookings/bookings-access.test.ts",
     "contract:emit": "prisma contract emit"
   },
   "dependencies": {
